@@ -1,1 +1,6 @@
-package dependency_submission_test
+package dependency_submission
+
+func main() {
+	toPrint := "hello2"
+	print(toPrint)
+}
