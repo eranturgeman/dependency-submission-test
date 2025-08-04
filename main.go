@@ -1,6 +1,10 @@
 package dependency_submission
 
+import (
+	"fmt"
+	"rsc.io/quote"
+)
+
 func main() {
-	toPrint := "hello2"
-	print(toPrint)
+	fmt.Println(quote.Hello())
 }

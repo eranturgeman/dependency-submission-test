@@ -1,0 +1,50 @@
+name: "Scan Repository with Dependency Submission"
+on:
+  pull_request_target:
+    types: [ opened, synchronize ] # Triggers scan-pr flow for every opened/updated pull request
+  push: # Triggers scan-repo flow for every push to the specified branches
+    branches:
+      - main
+  schedule:
+    - cron: "0 0 * * *"   # The repository will be scanned once a day at 00:00 GMT.
+  workflow_dispatch: # The repository will be scanned on demand
+
+permissions:
+  pull-requests: write
+  contents: write
+  # [Mandatory If using OIDC authentication protocol instead of JF_ACCESS_TOKEN]
+  # id-token: write
+jobs:
+  frogbot-scan:
+    runs-on: ubuntu-latest
+    # A pull request needs to be approved before Frogbot scans it. Any GitHub user who is associated with the
+    # "frogbot" GitHub environment can approve the pull request to be scanned.
+    steps:
+      - name: "Clone frogbot"
+        run: |
+          mkdir temp-for-clone
+          cd temp-for-clone
+          git clone -b dev https://github.com/jfrog/frogbot.git
+
+      - name: "Build frogbot"
+        run: |
+          cd temp-for-clone
+          cd frogbot
+          go build -o frogbot -ldflags '-w -extldflags "-static" -X github.com/jfrog/frogbot/v2/utils.FrogbotVersion=2.99.99'
+
+      - name: "Provide env and Run frogbot"
+        env:
+          JF_URL: ${{ secrets.JF_URL }}
+          JF_ACCESS_TOKEN: ${{ secrets.JF_ACCESS_TOKEN }}
+          JF_GIT_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          JF_GIT_BASE_BRANCH: main
+          JF_GIT_OWNER: eranturgeman
+          JF_GIT_PROVIDER: github
+          JF_GIT_REPO: dependency-submission-test
+          JFROG_CLI_LOG_LEVEL: DEBUG
+          JF_UPLOAD_SBOM_TO_VCS: TRUE
+        run: |
+          # Copy the built frogbot executable to the current repository directory
+          cp temp-for-clone/frogbot/frogbot ./frogbot
+          # Run frogbot from the current repository directory (go-small)
+          ./frogbot scan-repository
